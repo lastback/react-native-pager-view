@@ -181,23 +181,29 @@
     __weak ReactNativePageView *weakSelf = self;
     uint16_t coalescingKey = _coalescingKey++;
     
-    [self.reactPageViewController setViewControllers:@[controller]
-                                           direction:direction
-                                            animated:animated
-                                          completion:^(BOOL finished) {
-        __strong typeof(self) strongSelf = weakSelf;
-        strongSelf.currentIndex = index;
-        strongSelf.currentView = controller.view;
-        
-        if (strongSelf.eventDispatcher) {
-            if (strongSelf.lastReportedIndex != strongSelf.currentIndex) {
-                if (shouldCallOnPageSelected) {
-                    [strongSelf.eventDispatcher sendEvent:[[RCTOnPageSelected alloc] initWithReactTag:strongSelf.reactTag position:@(index) coalescingKey:coalescingKey]];
-                }
-                strongSelf.lastReportedIndex = strongSelf.currentIndex;
-            }
+    if(!self.animating){
+        if(self.currentIndex != index){
+            self.animating = YES;
         }
-    }];
+        [self.reactPageViewController setViewControllers:@[controller]
+                                               direction:direction
+                                                animated:animated
+                                              completion:^(BOOL finished) {
+            __strong typeof(self) strongSelf = weakSelf;
+            strongSelf.currentIndex = index;
+            strongSelf.currentView = controller.view;
+            
+            if (strongSelf.eventDispatcher) {
+                if (strongSelf.lastReportedIndex != strongSelf.currentIndex) {
+                    if (shouldCallOnPageSelected) {
+                        [strongSelf.eventDispatcher sendEvent:[[RCTOnPageSelected alloc] initWithReactTag:strongSelf.reactTag position:@(index) coalescingKey:coalescingKey]];
+                    }
+                    strongSelf.lastReportedIndex = strongSelf.currentIndex;
+                }
+            }
+            weakSelf.animating = NO;
+        }];
+    }
 }
 
 - (UIViewController *)currentlyDisplayed {
