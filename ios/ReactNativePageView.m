@@ -162,11 +162,15 @@
         
         [self.cachedControllers addObject:initialController];
         
+        __weak ReactNativePageView *weakSelf = self;
         [self setReactViewControllers:self.initialPage
                                  with:initialController
                             direction:UIPageViewControllerNavigationDirectionForward
                              animated:YES
-             shouldCallOnPageSelected:YES];
+             shouldCallOnPageSelected:YES
+                           completion:^(BOOL finished) {
+            weakSelf.animating = NO;
+        }];
     }
 }
 
@@ -174,17 +178,19 @@
                            with:(UIViewController *)controller
                       direction:(UIPageViewControllerNavigationDirection)direction
                        animated:(BOOL)animated
-                       shouldCallOnPageSelected:(BOOL)shouldCallOnPageSelected {
+                       shouldCallOnPageSelected:(BOOL)shouldCallOnPageSelected completion:(void (^ __nullable)(BOOL finished))completion {
     if (self.reactPageViewController == nil) {
+        if(completion){
+            completion(YES);
+        }
         return;
     }
-    __weak ReactNativePageView *weakSelf = self;
-    uint16_t coalescingKey = _coalescingKey++;
-    
-    if(!self.animating){
-        if(self.currentIndex != index){
-            self.animating = YES;
-        }
+//    if(!self.animating){
+        __weak ReactNativePageView *weakSelf = self;
+        uint16_t coalescingKey = _coalescingKey++;
+//        if(self.currentIndex != index){
+//            self.animating = YES;
+//        }
         [self.reactPageViewController setViewControllers:@[controller]
                                                direction:direction
                                                 animated:animated
@@ -201,9 +207,13 @@
                     strongSelf.lastReportedIndex = strongSelf.currentIndex;
                 }
             }
-            weakSelf.animating = NO;
+            
+            if(completion){
+                completion(finished);
+            }
+//            weakSelf.animating = NO;
         }];
-    }
+//    }
 }
 
 - (UIViewController *)currentlyDisplayed {
@@ -238,6 +248,10 @@
 }
 
 - (void)goTo:(NSInteger)index animated:(BOOL)animated {
+    if(self.animating){
+        return;
+    }
+    
     NSInteger numberOfPages = self.reactSubviews.count;
     
     if (numberOfPages == 0 || index < 0 || index > numberOfPages - 1) {
@@ -250,42 +264,56 @@
     self.reactPageIndicatorView.numberOfPages = numberOfPages;
     self.reactPageIndicatorView.currentPage = index;
     long diff = labs(index - _currentIndex);
+    __weak ReactNativePageView *weakSelf = self;
     
     if (isForward && diff > 0) {
+        self.animating = YES;
         for (NSInteger i=_currentIndex; i<=index; i++) {
             if (i == _currentIndex) {
                 continue;
             }
-            [self goToViewController:i direction:direction animated:animated shouldCallOnPageSelected: i == index];
+            [self goToViewController:i direction:direction animated:animated shouldCallOnPageSelected: i == index completion:^(BOOL finished) {
+                if(i == index){
+                    weakSelf.animating = NO;
+                }
+            }];
         }
     }
     
     if (!isForward && diff > 0) {
+        self.animating = YES;
         for (NSInteger i=_currentIndex; i>=index; i--) {
             // Prevent removal of one or many pages at a time
             if (index == _currentIndex || i >= numberOfPages) {
                 continue;
             }
-            [self goToViewController:i direction:direction animated:animated shouldCallOnPageSelected: i == index];
+            [self goToViewController:i direction:direction animated:animated shouldCallOnPageSelected: i == index completion:^(BOOL finished) {
+                if(i == index){
+                    weakSelf.animating = NO;
+                }
+            }];
         }
     }
     
     if (diff == 0) {
-        [self goToViewController:index direction:direction animated:animated shouldCallOnPageSelected:YES];
+        [self goToViewController:index direction:direction animated:animated shouldCallOnPageSelected:YES completion:^(BOOL finished) {
+            weakSelf.animating = NO;
+        }];
     }
 }
 
 - (void)goToViewController:(NSInteger)index
                             direction:(UIPageViewControllerNavigationDirection)direction
                             animated:(BOOL)animated
-                            shouldCallOnPageSelected:(BOOL)shouldCallOnPageSelected {
+                            shouldCallOnPageSelected:(BOOL)shouldCallOnPageSelected completion:(void (^ __nullable)(BOOL finished))completion {
     UIView *viewToDisplay = self.reactSubviews[index];
     UIViewController *controllerToDisplay = [self findAndCacheControllerForView:viewToDisplay];
     [self setReactViewControllers:index
                              with:controllerToDisplay
                         direction:direction
                          animated:animated
-                        shouldCallOnPageSelected:shouldCallOnPageSelected];
+         shouldCallOnPageSelected:shouldCallOnPageSelected
+                       completion:completion];
 }
     
 - (UIViewController *)findAndCacheControllerForView:(UIView *)viewToDisplay {
