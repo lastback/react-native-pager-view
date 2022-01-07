@@ -36,7 +36,10 @@
     "ios",
     "android"
   ],
-  "repository": "https://github.com/lastback/react-native-pager-view",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lastback/react-native-pager-view.git"
+  },
   "author": "troZee <nick.kai.lee@gmail.com> (https://github.com/lastback)",
   "license": "MIT",
   "bugs": {
@@ -131,5 +134,8 @@
         }
       ]
     ]
+  },
+  "directories": {
+    "example": "example"
   }
 }
